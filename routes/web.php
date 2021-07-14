@@ -1,5 +1,5 @@
 <?php
-
+use App\Http\Middleware\loginCheck;
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -18,3 +18,10 @@ Route::get('/', function () {
 Route::post('/register','Accounting\user_controller@register');
 
 Route::post('/login','Accounting\user_controller@login');
+
+Route::group(['middleware'=>loginCheck::class],function(){
+    
+    Route::post('/logout','Accounting\user_controller@logout');
+});
+
+

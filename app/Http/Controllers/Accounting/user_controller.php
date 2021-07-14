@@ -72,5 +72,15 @@ class user_controller extends Controller
             'msg'    => 'incorect phone number or password!',
         ],404);
     }
-    
+
+    public function logout(){
+
+        \Session::flush();
+        \Session::save();
+
+        return response()->json([
+            'status' => true,
+            'msg'    => 'logout was successfull',
+        ]);
+    }
 }
