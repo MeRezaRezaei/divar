@@ -46,7 +46,7 @@ class user_controller extends Controller
 
         $user = DB::table('users')
         ->where([
-            ['phone',    '=',$request->phone],
+            ['phone',    '=',strip_tags($request->phone)],
             ['password', '=',sha1($request->password)]
         ])
         ->first();
