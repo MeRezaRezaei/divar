@@ -16,3 +16,5 @@ Route::get('/', function () {
 });
 
 Route::post('/register','Accounting\user_controller@register');
+
+Route::post('/login','Accounting\user_controller@login');

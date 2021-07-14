@@ -22,8 +22,8 @@ class user_controller extends Controller
 
         $registration_info = [
             'phone'      => $request->phone,
-            'first_name' => $request->first_name,
-            'last_name'  => $request->last_name,
+            'first_name' => strip_tags($request->first_name),
+            'last_name'  => strip_tags($request->last_name),
             'password'   => sha1($request->password),
             'created_at' => $now,
             'updated_at' => $now,
@@ -34,7 +34,43 @@ class user_controller extends Controller
 
         return response()->json([
             'status' => true,
-            'msg' => 'user registerd successfully.'
+            'msg'    => 'user registerd successfully.'
         ],201);
     }
+
+    public function login(Request $request){
+        $this->validate($request,[
+            'phone'    => 'required|regex:/(98)[0-9]{9}/',
+            'password' => 'required|string',
+        ]);
+
+        $user = DB::table('users')
+        ->where([
+            ['phone',    '=',$request->phone],
+            ['password', '=',sha1($request->password)]
+        ])
+        ->first();
+        
+        if($user){
+
+            session([
+                'user_id'    => $user->id,
+                'first_name' => $user->first_name,
+                'last_name'  => $user->last_name,
+                'phone'      => $user->phone,
+                'role'       => $user->role
+            ]);
+
+            return response()->json([
+                'status' => true,
+                'msg'    => 'login was successfull.',
+            ]);
+        }
+
+        return response()->json([
+            'status' => false,
+            'msg'    => 'incorect phone number or password!',
+        ],404);
+    }
+    
 }
