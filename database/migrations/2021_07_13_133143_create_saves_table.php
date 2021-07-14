@@ -14,10 +14,12 @@ class CreateSavesTable extends Migration
     public function up()
     {
         Schema::create('saves', function (Blueprint $table) {
-            $table->increments('id');
-            $table->bigInteger('user_id');
-            $table->bigInteger('post_id');
+            $table->bigIncrements('id');
+            $table->unsignedBigInteger('user_id');
+            $table->unsignedBigInteger('post_id');
             $table->timestamps();
+            $table->foreign('user_id')->references('id')->on('users');
+            $table->foreign('post_id')->references('id')->on('posts');
         });
     }
 

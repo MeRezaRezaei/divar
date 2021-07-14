@@ -14,11 +14,14 @@ class CreatePostAttributesTable extends Migration
     public function up()
     {
         Schema::create('post_attributes', function (Blueprint $table) {
-            $table->increments('id');
-            $table->bigInteger('post_id');
-            $table->bigInteger('attribute_id');
+            $table->bigIncrements('id');
+            $table->unsignedBigInteger('post_id');
+            $table->unsignedBigInteger('attribute_id')->index();
             $table->timestamps();
+            $table->foreign('post_id')->references('id')->on('posts');
+            $table->foreign('attribute_id')->references('id')->on('attributes');
         });
+        
     }
 
     /**

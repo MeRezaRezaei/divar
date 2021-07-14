@@ -6,6 +6,9 @@ use Illuminate\Database\Migrations\Migration;
 
 class CreatePostsTable extends Migration
 {
+
+
+    
     /**
      * Run the migrations.
      *
@@ -14,10 +17,10 @@ class CreatePostsTable extends Migration
     public function up()
     {
         Schema::create('posts', function (Blueprint $table) {
-            $table->increments('id');
-            $table->bigInteger('user_id');
-            $table->bigInteger('place_id');
-            $table->bigInteger('category_id');
+            $table->bigIncrements('id');
+            $table->unsignedBigInteger('user_id');
+            $table->unsignedBigInteger('place_id');
+            $table->unsignedBigInteger('category_id');
             $table->string('subject',255);
             $table->text('description');
             $table->unsignedBigInteger('price')->nullable();
@@ -26,6 +29,7 @@ class CreatePostsTable extends Migration
             $table->boolean('is_confirm');
             $table->softDeletes();
             $table->timestamps();
+            $table->foreign('user_id')->references('id')->on('users');
         });
     }
 

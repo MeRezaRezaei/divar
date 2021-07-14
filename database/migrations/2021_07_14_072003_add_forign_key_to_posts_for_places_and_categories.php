@@ -4,7 +4,7 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Database\Migrations\Migration;
 
-class CreateAttributesTable extends Migration
+class AddForignKeyToPostsForPlacesAndCategories extends Migration
 {
     /**
      * Run the migrations.
@@ -13,12 +13,8 @@ class CreateAttributesTable extends Migration
      */
     public function up()
     {
-        Schema::create('attributes', function (Blueprint $table) {
-            $table->bigIncrements('id');
-            $table->unsignedBigInteger('category_id');
-            $table->string('name');
-            $table->boolean('is_required');
-            $table->timestamps();
+        Schema::table('posts', function (Blueprint $table) {
+            $table->foreign('place_id')->references('id')->on('places');
             $table->foreign('category_id')->references('id')->on('categories');
         });
     }
@@ -30,6 +26,9 @@ class CreateAttributesTable extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('attributes');
+        Schema::table('posts', function (Blueprint $table) {
+            $table->dropForeign('posts_place_id_foreign');
+            $table->dropForeign('posts_category_id_foreign');
+        });
     }
 }
