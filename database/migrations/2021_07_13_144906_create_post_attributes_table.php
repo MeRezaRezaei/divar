@@ -17,6 +17,7 @@ class CreatePostAttributesTable extends Migration
             $table->bigIncrements('id');
             $table->unsignedBigInteger('post_id');
             $table->unsignedBigInteger('attribute_id')->index();
+            $table->string('value',60);
             $table->timestamps();
             $table->foreign('post_id')->references('id')->on('posts');
             $table->foreign('attribute_id')->references('id')->on('attributes');
