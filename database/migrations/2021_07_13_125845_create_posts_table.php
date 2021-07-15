@@ -26,7 +26,7 @@ class CreatePostsTable extends Migration
             $table->unsignedBigInteger('price')->nullable();
             $table->boolean('is_urgent');
             $table->boolean('is_elevated');
-            $table->boolean('is_confirm');
+            $table->boolean('is_confirmed');
             $table->softDeletes();
             $table->timestamps();
             $table->foreign('user_id')->references('id')->on('users');
