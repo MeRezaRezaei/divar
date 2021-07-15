@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Pictures extends Model
 {
-    protected $fillables = [
+    protected $fillable = [
         'psot_id',
         'path'
     ];

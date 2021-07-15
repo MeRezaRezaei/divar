@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Places extends Model
 {
-    protected $fillables = [
+    protected $fillable = [
         'parent_id',
         'name'
     ];

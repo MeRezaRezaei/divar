@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class PostAttributes extends Model
 {
-    protected $fillables = [
+    protected $fillable = [
         'post_id',
         'attribute_id',
     ];
