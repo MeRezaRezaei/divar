@@ -10,4 +10,8 @@ class Category extends Model
         'parent_id',
         'name'
     ];
+    
+    public function attributes(){
+        return $this->hasMany('App\Attributes','category_id','id');
+    }
 }
