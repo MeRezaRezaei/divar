@@ -8,6 +8,8 @@ class Places extends Model
 {
     protected $fillable = [
         'parent_id',
-        'name'
+        'name',
+        'created_at',
+        'updated_at',
     ];
 }
