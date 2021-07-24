@@ -4,9 +4,12 @@ namespace App\Exceptions;
 
 use Exception;
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
+use App\Http\General\errors;
 
 class Handler extends ExceptionHandler
 {
+
+    use errors;
     /**
      * A list of the exception types that are not reported.
      *
@@ -48,6 +51,11 @@ class Handler extends ExceptionHandler
      */
     public function render($request, Exception $exception)
     {
+        if ($exception instanceof \Illuminate\Database\QueryException or $exception instanceof \PDOException) {
+
+            return $this->log_error_and_return_internal_server_error($exception);
+        }
+        
         return parent::render($request, $exception);
     }
 }
