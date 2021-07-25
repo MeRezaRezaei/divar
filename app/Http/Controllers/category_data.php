@@ -20,7 +20,7 @@ class category_data extends Controller
 
         foreach($categories as $key => $category){
             $category_id = $category->id;
-            $this->all_categories[++$key] = [
+            $this->all_categories[$category_id] = [
                 'name'=>  $category->name,
                 'id' => $category_id,
                 'parent_id' => $category->parent_id,
