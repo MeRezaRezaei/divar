@@ -17,7 +17,10 @@ class admin_controller extends Controller
         ->select('description','subject','id')
         ->get();
 
-        return response()->json($posts);
+        return response()->json([
+            'status'=> true,
+            'posts' =>$posts,
+        ]);
     }
     
     public function confirm_post(Request $request){
