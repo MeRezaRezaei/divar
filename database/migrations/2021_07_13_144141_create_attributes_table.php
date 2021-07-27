@@ -18,6 +18,7 @@ class CreateAttributesTable extends Migration
             $table->unsignedBigInteger('category_id');
             $table->string('name');
             $table->boolean('is_required');
+            $table->boolean('is_int');
             $table->timestamps();
             $table->foreign('category_id')->references('id')->on('categories');
         });
