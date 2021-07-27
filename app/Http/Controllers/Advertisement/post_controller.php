@@ -214,7 +214,7 @@ class post_controller extends Controller
 
         $category_data = new category_data();
         $all_categories_with_attributes = $category_data->get_categories_with_related_attributes();
-
+        
         return array_merge(
             $all_categories_with_attributes[$category_id]['attributes'],
             $all_categories_with_attributes[$category_id]['parent_attributes']
@@ -432,7 +432,7 @@ class post_controller extends Controller
         'max_price',
     ];
     
-    public function search_posts(Request $request){
+    public function get_posts(Request $request){
 
         $this->validate($request,[
             'place_id' => 'integer|exists:places,id',
@@ -442,6 +442,16 @@ class post_controller extends Controller
             'max_price' => 'integer|min:0',
         ]);
 
+        $attributes_array_for_validation = [];
+
+        if($request->filled('category_id')){
+
+            $attributes_array_for_validation = $this->validate_category_attributes_array($request->category_id);
+
+            $this->validate($request,$attributes_array_for_validation);
+
+        }
+
         $where_options = [];
         foreach($this->post_search_request_options as $option){
             if($request->filled($option)){
@@ -450,6 +460,16 @@ class post_controller extends Controller
         }
 
         $posts = $this->get_posts_information($where_options);
+        
+        if($attributes_array_for_validation != []){
+
+            $attribute_filter_rules = $this->get_attribute_filter_rules($request);
+            if($attribute_filter_rules != []){
+
+                $this->filter_posts_with_attributes_value($posts,$attribute_filter_rules);
+            }
+        }
+        
 
         $this->sort_posts($posts,[
             'is_urgent',
@@ -463,6 +483,96 @@ class post_controller extends Controller
         ]);
     }
 
+    public function filter_posts_with_attributes_value(&$posts,$attribute_filter_rules){
+        foreach($posts as $post_key => $post){
+                    
+            foreach($attribute_filter_rules as $attr_key => $rule){
+
+                if($rule['is_int']){
+                    
+                    if($rule['min']){
+                        
+                        if( (int)$post->attributes[$attr_key] < $rule['min'] ){
+                            unset($posts[$post_key]);
+                        }
+                        
+                    }
+                    if($rule['max']){
+
+                        if( (int)$post->attributes[$attr_key] > $rule['max'] ){
+                            unset($posts[$post_key]);
+                        }
+
+                    }
+                }
+                else{
+
+                    if( $post['attributes'][$attr_key] != $rule['value'] ){
+                        unset($posts[$post_key]);
+                    }
+
+                }
+            }
+        }
+    }
+
+    public function get_attribute_filter_rules(Request $request){
+        $filter_attribute_rules = [];
+        foreach($this->all_attributes_for_this_category as $attribute){
+            $attribute_name = $attribute['name'];
+            $attribute_is_int = $attribute['is_int'];
+            if($attribute_is_int){
+                $min_key_name = 'min_'.$attribute_name;
+                $max_key_name = 'max_'.$attribute_name;
+                $min_attribute_value = $request->$min_key_name;
+                $max_attribute_value = $request->$max_key_name;
+                if($min_attribute_value || $max_attribute_value){
+                    $filter_attribute_rules[$attribute['id']] = [
+                        'is_int'=>true,
+                        'min' => $min_attribute_value ? (int)$min_attribute_value : false ,
+                        'max' => $max_attribute_value ? (int)$max_attribute_value : false ,
+                        
+                    ];
+                }
+                
+            }
+            else{
+                $attribute_request_value = $request->$attribute_name;
+
+                if($attribute_request_value){
+                    $filter_attribute_rules[$attribute['id']] = [
+                        'is_int'=>false,
+                        'value' => $request->$attribute_name,
+                        
+                    ];
+                }
+                
+            }
+        }
+        return $filter_attribute_rules;
+    }
+
+    public function validate_category_attributes_array($category_id){
+        $this->all_attributes_for_this_category 
+        = $this->get_all_parent_and_self_attributes_for_given_category($category_id);
+        
+        $attributes_array_for_validation = [];
+        foreach($this->all_attributes_for_this_category as $attribute){
+            $attribute_name = $attribute['name'];
+            if($attribute['is_int']){
+                $min_key_name = 'min_'.$attribute_name;
+                $attributes_array_for_validation[$min_key_name] = 'integer';
+                $max_key_name = 'max_'.$attribute_name;
+                $attributes_array_for_validation[$max_key_name] = 'integer';
+            }
+            else{
+                $attributes_array_for_validation[$attribute_name] = 'string';
+            }
+        }
+        return $attributes_array_for_validation;
+        
+    }
+
     public function get_posts_information(array $where_fields){
 
         $where_cluse = $this->get_posts_where_cluse($where_fields);
@@ -470,6 +580,7 @@ class post_controller extends Controller
         $posts = DB::table('posts')
         ->join('pictures', 'pictures.post_id','=','posts.id','left')
         ->join('users','posts.user_id','=','users.id')
+        ->join('post_attributes','posts.id','=','post_attributes.post_id')
         ->where($where_cluse)
         ->select([
             'posts.id',
@@ -484,11 +595,15 @@ class post_controller extends Controller
             'is_urgent',
             'is_elevated',
             'posts.created_at',
-            'path'
+            'path',
+            'post_attributes.attribute_id',
+            'value',
+            
         ])
-        ->get()->toArray();
+        ->get()->toArray()
         ;
-        return $this->remove_duplicated_posts_and_put_all_pic_pahtes_together($posts);
+
+        return $this->remove_any_possible_join_duplicates($posts);
     }
 
     public function get_posts_where_cluse($where_fields){
@@ -511,7 +626,7 @@ class post_controller extends Controller
         return $where_cluse;
     }
 
-    public function remove_duplicated_posts_and_put_all_pic_pahtes_together($posts){
+    public function remove_any_possible_join_duplicates($posts){
 
         $result_posts = [];
         foreach ($posts as $post) {
@@ -521,10 +636,16 @@ class post_controller extends Controller
             {
                 $result_posts[$post->id] = $post;
             }
+            if($post->path){
+                $result_posts[$post->id]->paths[] = $post->path;
+            }
+            
+            if($post->attribute_id){
+                $result_posts[$post->id]->attributes[$post->attribute_id] = $post->value; 
+            }
+            
 
-            $result_posts[$post->id]->paths[] = $post->path;
-
-            unset($result_posts[$post->id]->path);
+            unset($result_posts[$post->id]->path,$post->attribute_id,$post->value);
         }
         
 
@@ -596,4 +717,245 @@ class post_controller extends Controller
         ]);
     }
 
+    public function delete_post(Request $request){
+        $this->validate($request,[
+            'id' => 'required|integer'
+        ]);
+        $request_post_id = $request->id;
+
+        $post = DB::table('posts')
+        ->whereId($request_post_id)
+        ->whereNull('deleted_at')
+        ->first()
+        ;
+
+        if(!$post){
+            return $this->return_error_for_post_does_not_exist();
+        }
+
+        if($post->user_id == $request->session()->get('user_id')){
+            DB::table('posts')
+            ->whereId($request_post_id)
+            ->update([
+                'deleted_at'=>carbon::now()
+            ]);
+            
+        }
+        else{
+            return $this->return_error_for_post_does_not_belong_to_logged_in_user();
+        }
+
+        return response()->json([
+            'status' => true,
+            'msg' => 'post deleted successfully.',
+        ]);
+
+
+    }
+
+    public $post_values = [
+        'subject'     ,
+        'description' ,
+        'place_id'    ,
+        'category_id' ,
+        'price'       ,
+        'is_urgent'   ,
+    ];
+
+    public function edit_post(Request $request){
+        
+        $this->validate_post_for_edit_part($request);
+
+        $post_id = $request->id;
+
+        $post = $this->get_post_by_id($post_id);
+
+        if(!$post){
+            return $this->return_error_for_post_does_not_exist();
+        }
+        
+        if($post->user_id != $request->session()->get('user_id')){
+            return $this->return_error_for_post_does_not_belong_to_logged_in_user();
+        }
+
+        $post_category_id = $post->category_id;
+
+        if($this->check_if_request_category_id_has_changed($request,$post_category_id)){
+            return response()->json([
+                'status' => false,
+                'msg' => 'you can not change a post category.'
+            ]);
+        }
+
+        $attribute_validate_rules = $this->get_attribute_validate_rules($post_category_id);
+        $this->validate($request,$attribute_validate_rules);
+
+        $post_values_to_update = [];
+        foreach($this->post_values as $post_value){
+            if($request->filled($post_value)){
+                $post_values_to_update[$post_value] = $request->$post_value;
+            }
+        }
+
+        $post_values_to_update_is_empty = ($post_values_to_update == []);
+        if(!$post_values_to_update_is_empty){
+            DB::table('posts')
+            ->whereId($post_id)
+            ->update($post_values_to_update)
+            ;
+        }
+        
+        $attribute_values_to_update_is_empty = true;
+        foreach($this->all_related_attributes_for_new_post as $attribute){
+            $attribute_name = $attribute['name'];
+            if($request->filled($attribute_name)){
+                DB::table('post_attributes')
+                ->where([
+                    ['post_id','=',$post_id],
+                    ['attribute_id','=',$attribute['id']],
+                ])
+                ->update([
+                    'value'=> $request->$attribute_name,
+                    'updated_at' => carbon::now(),
+                ])
+                ;
+                $attribute_values_to_update_is_empty = false;
+            }
+        }
+
+        if($post_values_to_update_is_empty && $attribute_values_to_update_is_empty ){
+            return response()->json([
+                'status' => false,
+                'msg' => 'you did not specify any value to change'
+            ]);
+        }
+
+        return response()->json([
+            'status' => true,
+            'msg' => 'post edited successfully.',
+        ]);
+    }
+
+    public function validate_post_for_edit_part(Request $request){
+        $this->validate($request,[
+            'id'          => 'required|integer', 
+            'subject'     => 'string|max:255',
+            'description' => 'string|max:5000',
+            'place_id'    => 'integer|exists:places,id',
+            'category_id' => 'integer|exists:categories,id',
+            'price'       => 'integer',
+            'is_urgent'   => 'bool',
+        ]);
+    }
+
+    public function get_post_by_id($id){
+        return DB::table('posts')
+        ->whereId($id)
+        ->whereNull('deleted_at')
+        ->first();
+    }
+
+    public function return_error_for_post_does_not_exist(){
+        return response()->json([
+            'status' => false,
+            'msg' => 'this post does not exist or deleted',
+        ]);
+    }
+
+    public function return_error_for_post_does_not_belong_to_logged_in_user(){
+        return response()->json([
+            'status' => false,
+            'msg' => 'you can not edit the post which does not belongs to you',
+        ]);
+    }
+
+    public function get_attribute_validate_rules($category_id){
+        $this->all_related_attributes_for_new_post 
+        = $this->get_all_parent_and_self_attributes_for_given_category($category_id);
+
+        $attribute_validate_rules = [];
+        foreach($this->all_related_attributes_for_new_post as $attribute) 
+            $attribute_validate_rules[$attribute['name']] 
+            = 'string|max:60'
+        ;
+        return $attribute_validate_rules;
+    }
+
+    public function check_if_request_category_id_has_changed(Request $request,$post_category_id){
+        if($request->filled('category_id')){
+            $request_category_id = $request->category_id;
+        }
+        else{
+            $request_category_id = $post_category_id;
+        }
+        return $post_category_id != $request_category_id;
+    }
+
+    public function get_attribute_recomandations(Request $request){
+        $this->validate($request,[
+            'attribute_id' => 'required|integer|exists:attributes,id',
+            'value' => 'required|string|max:60'
+        ]);
+
+        $recomandations = DB::table('post_attributes')
+        ->where('attribute_id','=', $request->attribute_id)
+        ->where('value','like','%'.$request->value.'%')
+        ->select('value')
+        ->get()->toArray();
+        
+        $recomandations_with_numeric_index = [];
+
+        foreach($recomandations as $recomandation){
+            $recomandations_with_numeric_index[] = $recomandation->value;
+        }
+    
+        $recomandations = array_unique($recomandations_with_numeric_index);
+
+        return response()->json([
+            'status' => true,
+            'recommendations' => $recomandations,
+        ]);
+
+    }
+
+    public $select_posts_colums = [
+        'posts.id',
+        'user_id',
+        'users.first_name',
+        'users.last_name',
+        'place_id',
+        'category_id',
+        'subject',
+        'description',
+        'price',
+        'is_urgent',
+        'is_elevated',
+        'posts.created_at',
+        'path',
+        'post_attributes.attribute_id',
+        'value',
+    ];
+
+    public function get_post(Request $request){
+        $this->validate($request,[
+            'id' => 'required|integer'
+        ]);
+
+        $post = DB::table('posts')
+        ->join('pictures', 'pictures.post_id','=','posts.id','left')
+        ->join('users','posts.user_id','=','users.id')
+        ->join('post_attributes','posts.id','=','post_attributes.post_id')
+        ->where('posts.id','=',$request->id)
+        ->select($this->select_posts_colums)
+        ->get()->toArray();
+        ;
+
+        $post = $this->remove_any_possible_join_duplicates($post);
+
+        return response()->json([
+            'status' => true,
+            'post' => $post,
+        ]);
+    }
+    
 }

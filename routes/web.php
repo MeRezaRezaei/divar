@@ -34,7 +34,9 @@ Route::group(['middleware'=>loginCheck::class],function(){
 
     Route::post('/seeSaved','Advertisement\post_controller@see_saved');
 
+    Route::post('/deletePost','Advertisement\post_controller@delete_post');
 
+    Route::post('/editPost','Advertisement\post_controller@edit_post');
 });
 
 Route::group(['middleware'=>isAdmin::class],function(){
@@ -49,6 +51,10 @@ Route::post('/getCategories','Advertisement\post_controller@get_categories');
 
 Route::post('/getPlaces','Advertisement\post_controller@get_places');
 
-Route::post('/searchPosts','Advertisement\post_controller@search_posts');
+Route::post('/getPosts','Advertisement\post_controller@get_posts');
+
+Route::post('attributesRecommandations','Advertisement\post_controller@get_attribute_recomandations');
+
+Route::post('getPost','Advertisement\post_controller@get_post');
 
 
