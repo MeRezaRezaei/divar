@@ -10,5 +10,6 @@ class Attributes extends Model
         'category_id',
         'name',
         'is_required',
+        'is_int',
     ];
 }
