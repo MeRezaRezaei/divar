@@ -50,26 +50,31 @@ class categories_attributes extends Seeder
             'name'=>'balcony_area',
             'category_id' => $categories11->id,
             'is_required' => true,
+            'is_int' => true,
         ]);
         $attributes1 = Attributes::Create([
             'name'=>'area',
             'category_id' => $categories111->id,
             'is_required' => false,
+            'is_int' => true,
         ]);
         $attributes2 = Attributes::Create([          
             'name'=>'rooms',
             'category_id' => $categories1->id,
             'is_required' => false,
+            'is_int' => true,
         ]);
         $attributes3 = Attributes::Create([
             'name'=>'build_year',
             'category_id' => $categories1->id,
             'is_required' => false,
+            'is_int' => true,
         ]);
         $attributes4 = Attributes::Create([
             'name'=>'kind',
             'category_id' => $categories1->id,
             'is_required' => false,
+            'is_int' => false,
         ]);
 
 
@@ -78,21 +83,25 @@ class categories_attributes extends Seeder
             'name'=>'kind',
             'category_id' => $categories2->id,
             'is_required' => false,
+            'is_int' => false,
         ]);
         $attributes6 = Attributes::Create([
             'name'=>'model',
             'category_id' => $categories2->id,
             'is_required' => false,
+            'is_int' => false,
         ]);
         $attributes7 = Attributes::Create([
             'name'=>'color',
             'category_id' => $categories2->id,
             'is_required' => false,
+            'is_int' => false,
         ]);
         $attributes8 = Attributes::Create([
             'name'=>'year',
             'category_id' => $categories2->id,
             'is_required' => false,
+            'is_int' => true,
         ]);
 
 
