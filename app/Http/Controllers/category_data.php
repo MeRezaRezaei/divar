@@ -56,7 +56,7 @@ class category_data extends Controller
             
         }
 
-        $attributes = DB::table('attributes')->select('id','category_id','name','is_required')->get();
+        $attributes = DB::table('attributes')->select('id','category_id','name','is_required','is_int')->get();
 
         foreach($attributes as $key => $attribute)
             $this->all_attributes[++$key] = [
@@ -64,6 +64,7 @@ class category_data extends Controller
                 'id' => $attribute->id,
                 'category_id' => $attribute->category_id,
                 'is_required' => $attribute->is_required,
+                'is_int' => $attribute->is_int,
 
             ]
         ;
