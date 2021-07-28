@@ -423,6 +423,7 @@ class post_controller extends Controller
 
 
     public $post_search_request_options = [
+        'subject',
         'is_confirmed',
         'deleted_at',
         'place_id',
@@ -573,6 +574,16 @@ class post_controller extends Controller
         
     }
 
+    public $post_values = [
+        'subject'     ,
+        'description' ,
+        'place_id'    ,
+        'category_id' ,
+        'price'       ,
+        'is_urgent'   ,
+    ];
+
+
     public function get_posts_information(array $where_fields){
 
         $where_cluse = $this->get_posts_where_cluse($where_fields);
@@ -582,24 +593,7 @@ class post_controller extends Controller
         ->join('users','posts.user_id','=','users.id')
         ->join('post_attributes','posts.id','=','post_attributes.post_id')
         ->where($where_cluse)
-        ->select([
-            'posts.id',
-            'user_id',
-            'users.first_name',
-            'users.last_name',
-            'place_id',
-            'category_id',
-            'subject',
-            'description',
-            'price',
-            'is_urgent',
-            'is_elevated',
-            'posts.created_at',
-            'path',
-            'post_attributes.attribute_id',
-            'value',
-            
-        ])
+        ->select($this->select_posts_colums)
         ->get()->toArray()
         ;
 
@@ -623,6 +617,10 @@ class post_controller extends Controller
         if(array_key_exists('max_price',$where_fields)){
             $where_cluse[] = ['price','<=',$where_fields['max_price']];
         }
+        if(array_key_exists('subject',$where_fields)){
+            array_push($where_cluse,['subject','like','%'.$where_fields['subject'].'%']);
+        }
+        
         return $where_cluse;
     }
 
@@ -753,14 +751,7 @@ class post_controller extends Controller
 
     }
 
-    public $post_values = [
-        'subject'     ,
-        'description' ,
-        'place_id'    ,
-        'category_id' ,
-        'price'       ,
-        'is_urgent'   ,
-    ];
+    
 
     public function edit_post(Request $request){
         
