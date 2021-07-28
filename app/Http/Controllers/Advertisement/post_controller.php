@@ -689,6 +689,7 @@ class post_controller extends Controller
                 ->whereNull('deleted_at')
                 ->join('users','posts.user_id','=','users.id')
                 ->select([
+                    'posts.id AS post_id',
                     'users.id',
                     'users.first_name',
                     'users.last_name',
@@ -708,6 +709,39 @@ class post_controller extends Controller
                 'msg' => 'requested user did not post the post you want to see its user'
             ]);
         }
+        if($request->session()->has('user_id')){
+
+            $user_id = $request->session()->get('user_id');
+            $post_id = $post->post_id;
+
+            $now = carbon::now();
+
+            if($this->is_post_seen_before($post_id,$user_id)){
+                DB::table('post_seens')
+                ->where([
+                    'user_id' => $user_id,
+                    'post_id' => $post_id,
+                ])
+                ->update([
+                    'is_phone_requested' => true,
+                    'updated_at' => $now, 
+                ]);
+
+            }
+            else{
+
+                DB::table('post_seens')
+                ->insert([
+                    'user_id' => $user_id,
+                    'post_id' => $post_id,
+                    'is_phone_requested' => true,
+                    'created_at' =>$now,
+                    'updated_at' =>$now,
+                ]);
+
+            }
+        }
+        
         
         return response()->json([
             'status' => true,
@@ -941,12 +975,62 @@ class post_controller extends Controller
         ->get()->toArray();
         ;
 
+        if(!$post){
+            return response()->json([
+                'status' => false,
+                'msg'    => 'this post does not exist or deleted'
+            ]);
+        }
+
         $post = $this->remove_any_possible_join_duplicates($post);
+
+        if($request->session()->has('user_id')){
+
+            $post_id = $request->id;
+            $user_id = $request->session()->get('user_id');
+
+            $now = Carbon::now();
+
+            if($this->is_post_seen_before($post_id,$user_id)){
+                DB::table('post_seens')
+                ->where([
+                    'user_id' => $user_id,
+                    'post_id' => $post_id,
+                ])
+                ->update([
+                    'updated_at' =>$now,
+                ])
+                ;
+            }
+            else{
+                DB::table('post_seens')
+                ->insert([
+                    'user_id' => $user_id,
+                    'post_id' => $post_id,
+                    'created_at' =>$now,
+                    'updated_at' =>$now,
+                ])
+                ;
+               
+            }
+            
+            
+        }
 
         return response()->json([
             'status' => true,
             'post' => $post,
         ]);
+    }
+
+    public function is_post_seen_before($post_id,$user_id){
+        $seen_before = DB::table('post_seens')
+        ->where([
+            'user_id' => $user_id,
+            'post_id' => $post_id,
+        ])
+        ->first();
+        return $seen_before ? true : false;
     }
     
 }
