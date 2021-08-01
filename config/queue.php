@@ -34,9 +34,16 @@ return [
             'driver' => 'sync',
         ],
 
-        'database' => [
+        'fcm' => [
             'driver' => 'database',
             'table' => 'jobs',
+            'queue' => 'fcm',
+            'retry_after' => 90,
+        ],
+
+        'database' => [
+            'driver' => 'database',
+            'table' => 'user_data_queue',
             'queue' => 'default',
             'retry_after' => 90,
         ],

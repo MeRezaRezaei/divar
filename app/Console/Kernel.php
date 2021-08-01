@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Console;
+use App\Jobs\test;
 
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
@@ -26,6 +27,9 @@ class Kernel extends ConsoleKernel
     {
         // $schedule->command('inspire')
         //          ->hourly();
+
+        $test_job = new test();
+        $schedule->job($test_job)->everyMinute();
     }
 
     /**
