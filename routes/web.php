@@ -58,3 +58,6 @@ Route::post('attributesRecommandations','Advertisement\post_controller@get_attri
 Route::post('getPost','Advertisement\post_controller@get_post');
 
 
+#test Routes
+
+Route::post('/jobTest','Tests\JobTests@test');
