@@ -16,6 +16,9 @@ use App\Http\Controllers\places_data;
 
 use App\Http\General\errors;
 
+use App\Jobs\insert_phone_request_history;
+use App\Jobs\insert_post_request_history;
+
 class post_controller extends Controller
 {
 
@@ -709,39 +712,8 @@ class post_controller extends Controller
                 'msg' => 'requested user did not post the post you want to see its user'
             ]);
         }
-        if($request->session()->has('user_id')){
-
-            $user_id = $request->session()->get('user_id');
-            $post_id = $post->post_id;
-
-            $now = carbon::now();
-
-            if($this->is_post_seen_before($post_id,$user_id)){
-                DB::table('post_seens')
-                ->where([
-                    'user_id' => $user_id,
-                    'post_id' => $post_id,
-                ])
-                ->update([
-                    'is_phone_requested' => true,
-                    'updated_at' => $now, 
-                ]);
-
-            }
-            else{
-
-                DB::table('post_seens')
-                ->insert([
-                    'user_id' => $user_id,
-                    'post_id' => $post_id,
-                    'is_phone_requested' => true,
-                    'created_at' =>$now,
-                    'updated_at' =>$now,
-                ]);
-
-            }
-        }
         
+        insert_phone_request_history::dispatch($request);
         
         return response()->json([
             'status' => true,
@@ -984,39 +956,12 @@ class post_controller extends Controller
 
         $post = $this->remove_any_possible_join_duplicates($post);
 
-        if($request->session()->has('user_id')){
-
-            $post_id = $request->id;
-            $user_id = $request->session()->get('user_id');
-
-            $now = Carbon::now();
-
-            if($this->is_post_seen_before($post_id,$user_id)){
-                DB::table('post_seens')
-                ->where([
-                    'user_id' => $user_id,
-                    'post_id' => $post_id,
-                ])
-                ->update([
-                    'updated_at' =>$now,
-                ])
-                ;
-            }
-            else{
-                DB::table('post_seens')
-                ->insert([
-                    'user_id' => $user_id,
-                    'post_id' => $post_id,
-                    'created_at' =>$now,
-                    'updated_at' =>$now,
-                ])
-                ;
-               
-            }
-            
-            
+        foreach($post as $item){
+            $post = $item;
         }
-
+            
+        insert_post_request_history::dispatch($request); 
+            
         return response()->json([
             'status' => true,
             'post' => $post,
@@ -1033,4 +978,29 @@ class post_controller extends Controller
         return $seen_before ? true : false;
     }
     
+    public function get_related_posts(Request $request){
+        $this->validate($request,[
+            'id' => 'required|integer',
+        ]);
+
+        $post = DB::table('posts')
+        ->whereId($request->id)
+        ->where('deleted_at','not',null)
+        ->first()
+        ;
+
+        if(!$post){
+            return response()->json([
+                'status' => false,
+                'msg' => 'requested post does not exist or deleted'
+            ]);
+        }
+
+        $posts_for_sugestion = DB::table('posts')
+        ->where([
+            ['category_id' ,'=', $post->category_id,],  
+            
+        ])
+        ;
+    }
 }
