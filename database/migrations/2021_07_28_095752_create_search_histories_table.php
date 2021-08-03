@@ -14,20 +14,19 @@ class CreateSearchHistoriesTable extends Migration
     public function up()
     {
         Schema::create('search_histories', function (Blueprint $table) {
-            $table->increments('id');
+            $table->BigIncrements('id');
             $table->unsignedBigInteger('user_id');
             $table->unsignedBigInteger('place_id')->nullable();
             $table->unsignedBigInteger('category_id')->nullable();
-            $table->unsignedBigInteger('attribute_id')->nullable();
+            
             
             $table->foreign('user_id')->references('id')->on('users');
             $table->foreign('place_id')->references('id')->on('places');
             $table->foreign('category_id')->references('id')->on('categories');
-            $table->foreign('attribute_id')->references('id')->on('attributes');
-            $table->string('text',255);
-            $table->bigInteger('att_min');
-            $table->bigInteger('att_max');
-            $table->string('value',60);
+            $table->bigInteger('min_price')->nullable();
+            $table->bigInteger('max_price')->nullable();
+            $table->boolean('is_urgent')->nullable();
+            $table->string('subject',255);
             $table->timestamps();
         });
     }
