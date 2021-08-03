@@ -1,6 +1,9 @@
 <?php
 use App\Http\Middleware\loginCheck;
 use App\Http\Middleware\isAdmin;
+//use Illuminate\Routing\Route;
+use Illuminate\Support\Facades\Route;
+
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -37,6 +40,9 @@ Route::group(['middleware'=>loginCheck::class],function(){
     Route::post('/deletePost','Advertisement\post_controller@delete_post');
 
     Route::post('/editPost','Advertisement\post_controller@edit_post');
+
+    Route::post('/getPostSugestion','Advertisement\post_controller@get_post_sugestions');
+    
 });
 
 Route::group(['middleware'=>isAdmin::class],function(){
@@ -56,6 +62,8 @@ Route::post('/getPosts','Advertisement\post_controller@get_posts');
 Route::post('attributesRecommandations','Advertisement\post_controller@get_attribute_recomandations');
 
 Route::post('getPost','Advertisement\post_controller@get_post');
+
+Route::post('/getRelatedPosts','Advertisement\post_controller@get_related_posts');
 
 
 #test Routes

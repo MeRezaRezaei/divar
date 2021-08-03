@@ -18,6 +18,7 @@ use App\Http\General\errors;
 
 use App\Jobs\insert_phone_request_history;
 use App\Jobs\insert_post_request_history;
+use App\Jobs\insert_search_history;
 
 class post_controller extends Controller
 {
@@ -427,8 +428,6 @@ class post_controller extends Controller
 
     public $post_search_request_options = [
         'subject',
-        'is_confirmed',
-        'deleted_at',
         'place_id',
         'category_id',
         'is_urgent',
@@ -439,6 +438,7 @@ class post_controller extends Controller
     public function get_posts(Request $request){
 
         $this->validate($request,[
+            'subject' => 'string|max:60',
             'place_id' => 'integer|exists:places,id',
             'category_id' => 'integer|exists:categories,id',
             'only_urgent' => 'boolean',
@@ -474,6 +474,7 @@ class post_controller extends Controller
             }
         }
         
+        insert_search_history::dispatch($request,$where_options,$attribute_filter_rules);
 
         $this->sort_posts($posts,[
             'is_urgent',
@@ -980,27 +981,175 @@ class post_controller extends Controller
     
     public function get_related_posts(Request $request){
         $this->validate($request,[
-            'id' => 'required|integer',
+            'post_id' => 'required|integer',
         ]);
 
         $post = DB::table('posts')
-        ->whereId($request->id)
-        ->where('deleted_at','not',null)
+        ->whereId($request->post_id)
+        ->whereNull('deleted_at')
         ->first()
         ;
-
+        
         if(!$post){
             return response()->json([
                 'status' => false,
                 'msg' => 'requested post does not exist or deleted'
             ]);
         }
-
+        $all_category_attributes = $this->get_all_parent_and_self_attributes_for_given_category($post->category_id);
+        $attribute_ids = [];
+        foreach($all_category_attributes as $attribute){
+            $attribute_ids[] = $attribute['id'];
+        }
+        
+        
         $posts_for_sugestion = DB::table('posts')
-        ->where([
-            ['category_id' ,'=', $post->category_id,],  
-            
-        ])
+        ->join('users','posts.user_id','=','users.id')
+        ->join('pictures', 'pictures.post_id','=','posts.id','left')
+        ->join('post_attributes','posts.id','=','post_attributes.post_id')
+
+        ->where('posts.category_id' ,'=', $post->category_id)
+        ->whereIn('post_attributes.attribute_id',$attribute_ids)
+
+        ->select($this->select_posts_colums)
+        ->get()
         ;
+
+        $posts_for_sugestion = $this->remove_any_possible_join_duplicates($posts_for_sugestion);
+
+        return response()->json([
+            'status' => true,
+            'posts' => $posts_for_sugestion,
+        ]);
+    }
+
+    public function get_post_sugestions(Request $request){
+        
+        if($request->session()->has('user_id')){
+            $user_id = $request->session()->get('user_id');
+            $now = Carbon::now();
+            $last_week = Carbon::now()->subWeek(1);
+            
+            $search_histories = DB::table('search_histories')
+            ->join('search_attributes','search_histories.id','=','search_attributes.search_history_id')
+            ->where('user_id','=',$user_id)
+            ->whereBetween('search_histories.updated_at',[$last_week,$now,])
+            ->select([
+                'search_histories.id as id',
+                'user_id',
+                'place_id',
+                'category_id',
+                'min_price',
+                'max_price',
+                'is_urgent',
+                'subject',
+                'search_histories.updated_at',
+                'attribute_id',
+                'min',
+                'max',
+                'value',
+            ])
+            ->get()
+            ;
+
+            $saves = DB::table('saves')
+            ->join('posts','posts.id','=','saves.post_id')
+            ->join('post_attributes','posts.id','=','post_attributes.post_id')
+            ->where('saves.user_id','=',$user_id)
+            ->where('is_active','=',true)
+            ->whereNull('deleted_at')
+            ->whereBetween('saves.updated_at',[$last_week,$now,])
+            ->get()
+            ;
+
+            $post_seens = DB::table('post_seens')
+            ->join('posts','posts.id','=','post_seens.post_id')
+            ->join('post_attributes','posts.id','=','post_attributes.post_id')
+            ->where('post_seens.user_id','=',$user_id)
+            ->whereNull('posts.deleted_at')
+            ->whereBetween('post_seens.updated_at',[$last_week,$now,])
+            ->get()
+            ;
+            
+            
+            
+            $attributes_to_find = [];
+            $categories_to_find = [];
+            $places_to_find = [];
+            $subjects_to_find = [];
+
+            foreach($search_histories as $search_history){
+            
+                if($search_history->attribute_id && !in_array($search_history->attribute_id,$attributes_to_find)){
+                    $attributes_to_find[] = $search_history->attribute_id;
+                }
+                if($search_history->category_id && !in_array($search_history->category_id,$categories_to_find)){
+                    $categories_to_find[] = $search_history->category_id;
+                }
+                if($search_history->place_id && !in_array($search_history->place_id,$places_to_find)){
+                    $places_to_find[] = $search_history->place_id;
+                }
+                if($search_history->subject && !in_array($search_history->subject,$subjects_to_find)){
+                    $subjects_to_find[] = $search_history->subject;
+                }
+                
+            }
+
+            foreach($saves as $save){
+                if($save->attribute_id && !in_array($save->attribute_id,$attributes_to_find)){
+                    $attributes_to_find[] = $save->attribute_id;
+                }
+                if($save->category_id && !in_array($save->category_id,$categories_to_find)){
+                    $categories_to_find[] = $save->category_id;
+                }
+                if($save->place_id && !in_array($save->place_id,$places_to_find)){
+                    $places_to_find[] = $save->place_id;
+                }
+            }
+
+            foreach($post_seens as $post_seen){
+                if($post_seen->attribute_id && !in_array($post_seen->attribute_id,$attributes_to_find)){
+                    $attributes_to_find[] = $post_seen->attribute_id;
+                }
+                if($post_seen->category_id && !in_array($post_seen->category_id,$categories_to_find)){
+                    $categories_to_find[] = $post_seen->category_id;
+                }
+                if($post_seen->place_id && !in_array($post_seen->place_id,$places_to_find)){
+                    $places_to_find[] = $post_seen->place_id;
+                }
+            }
+
+            $posts_to_sugest = DB::table('posts')
+            ->join('post_attributes','posts.id','=','post_attributes.post_id')
+            ;
+
+            $subjects_to_find = [];
+            if($attributes_to_find != []){
+                $posts_to_sugest->whereIn('attribute_id',$attributes_to_find);
+            }
+            if($categories_to_find != []){
+                $posts_to_sugest->orwhereIn('category_id',$categories_to_find);
+            }
+            if($places_to_find != []){
+                $posts_to_sugest->orwhereIn('place_id',$places_to_find);
+            }
+            if($subjects_to_find != []){
+                foreach($subjects_to_find as $subject){
+                    $posts_to_sugest->orwhere('subject','like','%'.$subject.'%');
+                }
+                
+            }
+
+            return response()->json([
+                'status' => true,
+                'sugestions' => $posts_to_sugest->get(),
+            ]);
+
+            dd($posts_to_sugest->get());
+
+            dd($attributes_to_find,$categories_to_find,$places_to_find,$subjects_to_find );
+
+            dd($search_histories,$saves,$post_seens,$last_week);
+        }
     }
 }
